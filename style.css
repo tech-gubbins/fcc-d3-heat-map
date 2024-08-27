@@ -1,0 +1,33 @@
+:root {
+    font-family: 'Work Sans', sans-serif;
+    text-align: center;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* svg {
+    fill: navy;
+} */
+
+/* .dot:hover {
+    fill: goldenrod;
+} */
+
+/* #chart-container {
+    margin-top: 20px;
+} */
+
+.tooltip {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 5px;
+    pointer-events: none;
+    font-size: 14px;
+    border-radius: 3px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
