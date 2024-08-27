@@ -27,53 +27,49 @@ function createHeatMap(monthlyVariance, baseTemperature) {
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
     // Set up scales for x and y axes
-    const x = d3
+    const xScale = d3
         .scaleBand()
         .domain(monthlyVariance.map((d) => d.year))
         .range([0, width])
         .padding(0.05);
 
-    const y = d3
+    const yScale = d3
         .scaleBand()
         .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
         .range([0, height])
         .padding(0.05);
 
     // Append x and y axes
+    const xAxis = d3
+        .axisBottom(xScale)
+        .tickValues(xScale.domain().filter((year, i) => year % 10 === 0)); // Adjust the ticks to every 10 years
+
     svg.append("g")
         .attr("id", "x-axis")
         .attr("transform", `translate(0, ${height})`)
-        .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+        .call(xAxis)
+        .selectAll("text")
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end");
 
-    svg.append("g")
-        .attr("id", "y-axis")
-        .call(
-            d3.axisLeft(y).tickFormat((month) => {
-                const months = [
-                    "January",
-                    "February",
-                    "March",
-                    "April",
-                    "May",
-                    "June",
-                    "July",
-                    "August",
-                    "September",
-                    "October",
-                    "November",
-                    "December",
-                ];
-                return months[month];
-            })
-        );
+    const yAxis = d3.axisLeft(yScale).tickFormat((d) => {
+        const date = new Date();
+        date.setMonth(d);
+        return d3.timeFormat("%B")(date);
+    });
 
-    // Set up color scale
+    svg.append("g").attr("id", "y-axis").call(yAxis);
+
+    // Define the color scale with more discrete colors
     const color = d3
-        .scaleSequential(d3.interpolateRdYlBu)
+        .scaleQuantize()
         .domain([
-            d3.max(monthlyVariance, (d) => d.variance + baseTemperature),
-            d3.min(monthlyVariance, (d) => d.variance + baseTemperature),
-        ]);
+            d3.min(monthlyVariance, (d) => baseTemperature + d.variance),
+            d3.max(monthlyVariance, (d) => baseTemperature + d.variance),
+        ])
+        .range(d3.schemeRdYlBu[11].reverse()); // Use a color scheme with 11 distinct colors
 
     // Add the cells
     svg.selectAll(".cell")
@@ -81,10 +77,10 @@ function createHeatMap(monthlyVariance, baseTemperature) {
         .enter()
         .append("rect")
         .attr("class", "cell")
-        .attr("x", (d) => x(d.year))
-        .attr("y", (d) => y(d.month - 1)) // Adjust month index (0-11)
-        .attr("width", x.bandwidth())
-        .attr("height", y.bandwidth())
+        .attr("x", (d) => xScale(d.year))
+        .attr("y", (d) => yScale(d.month - 1)) // Adjust month index (0-11)
+        .attr("width", xScale.bandwidth())
+        .attr("height", yScale.bandwidth())
         .attr("data-month", (d) => d.month - 1)
         .attr("data-year", (d) => d.year)
         .attr("data-temp", (d) => baseTemperature + d.variance)
@@ -119,7 +115,7 @@ function createHeatMap(monthlyVariance, baseTemperature) {
     const legendWidth = 400,
         legendHeight = 20;
 
-    const legendColors = color.range().reverse(); // Reverse the colors for better visual alignment
+    const legendColors = color.range(); // Use the new color scale range
 
     const legend = svg
         .append("g")
@@ -133,13 +129,10 @@ function createHeatMap(monthlyVariance, baseTemperature) {
 
     const legendScale = d3
         .scaleLinear()
-        .domain([
-            d3.min(monthlyVariance, (d) => d.variance + baseTemperature),
-            d3.max(monthlyVariance, (d) => d.variance + baseTemperature),
-        ])
+        .domain(color.domain())
         .range([0, legendWidth]);
 
-    const legendAxis = d3.axisBottom(legendScale).ticks(5);
+    const legendAxis = d3.axisBottom(legendScale).ticks(5); // Fewer ticks on the legend
 
     // Adjust this part to ensure at least 4 distinct fill colors
     const legendData = d3.range(legendColors.length).map((i) => {
@@ -156,14 +149,14 @@ function createHeatMap(monthlyVariance, baseTemperature) {
 
     legend
         .selectAll("rect")
-        .data(legendData)
+        .data(legendColors)
         .enter()
         .append("rect")
-        .attr("x", (d) => legendScale(d.start))
+        .attr("x", (d, i) => i * (legendWidth / legendColors.length))
         .attr("y", 0)
-        .attr("width", (d) => legendScale(d.end) - legendScale(d.start))
+        .attr("width", legendWidth / legendColors.length)
         .attr("height", legendHeight)
-        .style("fill", (d) => d.color);
+        .style("fill", (d) => d);
 
     legend
         .append("g")
